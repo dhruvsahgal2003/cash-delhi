@@ -62,7 +62,7 @@ export function Navigation() {
                 rel="noopener noreferrer"
                 data-testid="link-instagram"
               >
-                <Button variant="outline" size="icon" data-testid="button-instagram">
+                <Button variant="outline" size="icon" className="text-primary" data-testid="button-instagram">
                   <Instagram className="w-4 h-4" />
                 </Button>
               </a>
