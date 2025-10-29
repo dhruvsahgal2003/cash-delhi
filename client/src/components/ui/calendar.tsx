@@ -5,7 +5,9 @@ import { DayPicker } from "react-day-picker"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>
+export type CalendarProps = React.ComponentProps<typeof DayPicker> & {
+  onSelect?: (date: Date | undefined) => void;
+};
 
 function Calendar({
   className,
@@ -59,6 +61,7 @@ function Calendar({
           <ChevronRight className={cn("h-4 w-4", className)} {...props} />
         ),
       }}
+      onDayClick={props.onSelect}
       {...props}
     />
   )

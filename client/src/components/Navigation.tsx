@@ -3,12 +3,27 @@ import { Button } from "@/components/ui/button";
 import { Instagram, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useScrollSpy } from "@/hooks/useScrollSpy";
 
 export function Navigation() {
   const [location] = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated } = useAuth();
+
+  const navLinks = [
+    { path: "#home", label: "Home" },
+    { path: "#about", label: "About Us" },
+    { path: "#story", label: "Our Story" },
+    { path: "#events", label: "Events" },
+    { path: "#founder", label: "Founder" },
+    { path: "#contact", label: "Contact" },
+  ];
+
+  const activeId = useScrollSpy(
+    navLinks.map((link) => `section${link.path}`),
+    { rootMargin: "-50% 0px -50% 0px" }
+  );
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,15 +32,6 @@ export function Navigation() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const navLinks = [
-    { path: "/", label: "Home" },
-    { path: "/about", label: "About Us" },
-    { path: "/founder", label: "Meet the Founder" },
-    { path: "/story", label: "Our Story" },
-    { path: "/events", label: "Upcoming Events" },
-    { path: "/contact", label: "Contact Us" },
-  ];
 
   return (
     <>
@@ -36,25 +42,19 @@ export function Navigation() {
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            <Link href="/" data-testid="link-home">
-              <h1 className="font-serif text-2xl lg:text-3xl font-light tracking-wide hover-elevate cursor-pointer">
-                <span className="text-primary">Cash</span>
-                <span className="text-foreground">Delhi</span>
-              </h1>
-            </Link>
-
+            <div />
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-8">
               {navLinks.map((link) => (
-                <Link key={link.path} href={link.path} data-testid={`link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                <a key={link.path} href={link.path} data-testid={`link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}>
                   <span
                     className={`text-sm font-medium tracking-wide uppercase cursor-pointer transition-colors hover-elevate px-3 py-2 ${
-                      location === link.path ? "text-primary" : "text-foreground/80"
+                      activeId === link.path.substring(1) ? "text-primary" : "text-foreground/80"
                     }`}
                   >
                     {link.label}
                   </span>
-                </Link>
+                </a>
               ))}
               <a
                 href="https://instagram.com/cash.delhi"
@@ -66,13 +66,7 @@ export function Navigation() {
                   <Instagram className="w-4 h-4" />
                 </Button>
               </a>
-              {isAuthenticated && (
-                <Link href="/admin" data-testid="link-admin">
-                  <Button variant="default" size="sm" data-testid="button-admin">
-                    Admin
-                  </Button>
-                </Link>
-              )}
+              
             </div>
 
             {/* Mobile Menu Button */}
@@ -93,7 +87,7 @@ export function Navigation() {
         <div className="fixed inset-0 z-40 bg-background/98 backdrop-blur-md lg:hidden" data-testid="mobile-menu">
           <div className="flex flex-col items-center justify-center h-full gap-8 p-8">
             {navLinks.map((link) => (
-              <Link
+              <a
                 key={link.path}
                 href={link.path}
                 data-testid={`mobile-link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
@@ -101,12 +95,12 @@ export function Navigation() {
                 <span
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`text-2xl font-serif font-light cursor-pointer transition-colors hover-elevate px-4 py-2 ${
-                    location === link.path ? "text-primary" : "text-foreground"
+                    activeId === link.path.substring(1) ? "text-primary" : "text-foreground"
                   }`}
                 >
                   {link.label}
                 </span>
-              </Link>
+              </a>
             ))}
             <a
               href="https://instagram.com/cash.delhi"
@@ -120,18 +114,7 @@ export function Navigation() {
                 Follow Us
               </Button>
             </a>
-            {isAuthenticated && (
-              <Link href="/admin" data-testid="mobile-link-admin">
-                <Button
-                  variant="default"
-                  size="lg"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  data-testid="mobile-button-admin"
-                >
-                  Admin Panel
-                </Button>
-              </Link>
-            )}
+            
           </div>
         </div>
       )}

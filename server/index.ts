@@ -1,20 +1,39 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { setupAuth } from "./auth.js";
+import { router } from "./routes.js";
+import { setupVite, serveStatic, log } from "./vite.js";
+import session from "express-session";
+import createMemoryStore from "memorystore";
+import { createServer } from "http";
+
+const MemoryStore = createMemoryStore(session);
 
 const app = express();
-
-declare module 'http' {
-  interface IncomingMessage {
-    rawBody: unknown
-  }
-}
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;
   }
 }));
 app.use(express.urlencoded({ extended: false }));
+
+// Session middleware
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "your-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    store: new MemoryStore({
+      checkPeriod: 86400000, // prune expired entries every 24h
+    }),
+    cookie: {
+      maxAge: 86400000, // 24 hours
+    },
+  })
+);
+
+// Initialize auth
+setupAuth(app);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -46,15 +65,18 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(router);
+
 (async () => {
-  const server = await registerRoutes(app);
+  const server = createServer(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    // Don't rethrow the error, just log it
+    console.error(err);
   });
 
   // importantly only setup vite in development and after
@@ -70,11 +92,10 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
+  const port = parseInt(process.env.PORT || '5001', 10);
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
   });

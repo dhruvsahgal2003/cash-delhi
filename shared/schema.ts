@@ -4,11 +4,12 @@ import {
   index,
   jsonb,
   pgTable,
+  serial,
   text,
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Session storage table (mandatory for Replit Auth)
@@ -48,15 +49,14 @@ export const events = pgTable("events", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertEventSchema = createInsertSchema(events).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  title: z.string().min(1, "Event title is required"),
-  venue: z.string().min(1, "Venue is required"),
-  date: z.string().min(1, "Date is required"),
+export const insertEventSchema = createInsertSchema(events);
+export const selectEventSchema = createSelectSchema(events);
+
+export const adminUsers = pgTable("admin_users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
 });
 
-export type InsertEvent = z.infer<typeof insertEventSchema>;
-export type Event = typeof events.$inferSelect;
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type InsertAdminUser = typeof adminUsers.$inferInsert;

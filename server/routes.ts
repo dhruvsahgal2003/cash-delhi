@@ -1,96 +1,99 @@
-// API routes implementation with Replit Auth and event management
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertEventSchema } from "@shared/schema";
+import express from "express";
+import { db } from "./db.js";
+import { events, insertEventSchema } from "../shared/schema.js";
+import { isAuthenticated } from "./auth.js";
+import passport from "passport";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware setup
-  await setupAuth(app);
+export const router = express.Router();
 
-  // Auth routes - Get current user
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+// Auth routes
+router.get("/api/user", (req, res) => {
+  res.json({ user: req.user || null });
+});
+
+router.post("/api/login", passport.authenticate("local"), (req, res) => {
+  res.json({ success: true, user: req.user });
+});
+
+router.get("/api/logout", (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      return res.status(500).json({ message: "Error logging out" });
     }
+    res.json({ success: true });
   });
+});
 
-  // Event routes - Public
-  app.get('/api/events', async (req, res) => {
-    try {
-      const events = await storage.getAllEvents();
-      res.json(events);
-    } catch (error) {
-      console.error("Error fetching events:", error);
-      res.status(500).json({ message: "Failed to fetch events" });
+// Event routes
+router.get("/api/events", async (req, res) => {
+  const result = await db.select().from(events);
+  res.json(result);
+});
+
+router.get("/api/events/:id", async (req, res) => {
+  const result = await db
+    .select()
+    .from(events)
+    .where(eq(events.id, req.params.id));
+  if (result.length === 0) {
+    return res.status(404).json({ message: "Event not found" });
+  }
+  res.json(result[0]);
+});
+
+router.post("/api/events", isAuthenticated, async (req, res) => {
+  try {
+    const validatedData = insertEventSchema.parse(req.body);
+    const newEvent = await db.insert(events).values(validatedData).returning();
+    res.status(201).json(newEvent[0]);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ message: "Invalid event data", errors: error.errors });
     }
-  });
+    console.error("Error creating event:", error);
+    res.status(500).json({ message: "Failed to create event" });
+  }
+});
 
-  app.get('/api/events/:id', async (req, res) => {
-    try {
-      const event = await storage.getEvent(req.params.id);
-      if (!event) {
-        return res.status(404).json({ message: "Event not found" });
-      }
-      res.json(event);
-    } catch (error) {
-      console.error("Error fetching event:", error);
-      res.status(500).json({ message: "Failed to fetch event" });
+router.patch("/api/events/:id", isAuthenticated, async (req, res) => {
+  try {
+    const validatedData = insertEventSchema.partial().parse(req.body);
+    const updatedEvent = await db
+      .update(events)
+      .set(validatedData)
+      .where(eq(events.id, req.params.id))
+      .returning();
+    if (updatedEvent.length === 0) {
+      return res.status(404).json({ message: "Event not found" });
     }
-  });
-
-  // Event routes - Protected (Admin only)
-  app.post('/api/events', isAuthenticated, async (req, res) => {
-    try {
-      const validatedData = insertEventSchema.parse(req.body);
-      const event = await storage.createEvent(validatedData);
-      res.status(201).json(event);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid event data", errors: error.errors });
-      }
-      console.error("Error creating event:", error);
-      res.status(500).json({ message: "Failed to create event" });
+    res.json(updatedEvent[0]);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ message: "Invalid event data", errors: error.errors });
     }
-  });
+    console.error("Error updating event:", error);
+    res.status(500).json({ message: "Failed to update event" });
+  }
+});
 
-  app.patch('/api/events/:id', isAuthenticated, async (req, res) => {
-    try {
-      const validatedData = insertEventSchema.parse(req.body);
-      const event = await storage.updateEvent(req.params.id, validatedData);
-      if (!event) {
-        return res.status(404).json({ message: "Event not found" });
-      }
-      res.json(event);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid event data", errors: error.errors });
-      }
-      console.error("Error updating event:", error);
-      res.status(500).json({ message: "Failed to update event" });
+router.delete("/api/events/:id", isAuthenticated, async (req, res) => {
+  try {
+    const deletedEvent = await db
+      .delete(events)
+      .where(eq(events.id, req.params.id))
+      .returning();
+    if (deletedEvent.length === 0) {
+      return res.status(404).json({ message: "Event not found" });
     }
-  });
-
-  app.delete('/api/events/:id', isAuthenticated, async (req, res) => {
-    try {
-      const success = await storage.deleteEvent(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Event not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting event:", error);
-      res.status(500).json({ message: "Failed to delete event" });
-    }
-  });
-
-  const httpServer = createServer(app);
-  return httpServer;
-}
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    res.status(500).json({ message: "Failed to delete event" });
+  }
+});
