@@ -66,12 +66,11 @@ export function Navigation() {
                   <Instagram className="w-4 h-4" />
                 </Button>
               </a>
-              
             </div>
 
             {/* Mobile Menu Button */}
             <button
-              className="lg:hidden p-2 hover-elevate active-elevate-2"
+              className="lg:hidden p-2 hover-elevate active-elevate-2 text-foreground"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               data-testid="button-mobile-menu"
               aria-label="Toggle menu"
@@ -83,41 +82,43 @@ export function Navigation() {
       </nav>
 
       {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-background/98 backdrop-blur-md lg:hidden" data-testid="mobile-menu">
-          <div className="flex flex-col items-center justify-center h-full gap-8 p-8">
-            {navLinks.map((link) => (
-              <a
-                key={link.path}
-                href={link.path}
-                data-testid={`mobile-link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
-              >
-                <span
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`text-2xl font-serif font-light cursor-pointer transition-colors hover-elevate px-4 py-2 ${
-                    activeId === link.path.substring(1) ? "text-primary" : "text-foreground"
-                  }`}
-                >
-                  {link.label}
-                </span>
-              </a>
-            ))}
+      <div
+        className={`fixed inset-0 z-40 bg-background/98 backdrop-blur-md lg:hidden transition-transform duration-300 ${
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        data-testid="mobile-menu"
+      >
+        <div className="flex flex-col items-center justify-center h-full gap-8 p-8">
+          {navLinks.map((link) => (
             <a
-              href="https://instagram.com/cash.delhi"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setIsMobileMenuOpen(false)}
-              data-testid="mobile-link-instagram"
+              key={link.path}
+              href={link.path}
+              data-testid={`mobile-link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
             >
-              <Button variant="outline" size="lg" className="gap-2" data-testid="mobile-button-instagram">
-                <Instagram className="w-5 h-5" />
-                Follow Us
-              </Button>
+              <span
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`text-2xl font-serif font-light cursor-pointer transition-colors hover-elevate px-4 py-2 ${
+                  activeId === link.path.substring(1) ? "text-primary" : "text-foreground"
+                }`}
+              >
+                {link.label}
+              </span>
             </a>
-            
-          </div>
+          ))}
+          <a
+            href="https://instagram.com/cash.delhi"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setIsMobileMenuOpen(false)}
+            data-testid="mobile-link-instagram"
+          >
+            <Button variant="outline" size="lg" className="gap-2" data-testid="mobile-button-instagram">
+              <Instagram className="w-5 h-5" />
+              Follow Us
+            </Button>
+          </a>
         </div>
-      )}
+      </div>
     </>
   );
 }
