@@ -1,23 +1,26 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
-import { setupAuth } from "./auth.js";
-import { router } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
+import { setupAuth } from "../server/auth.js";
+import { router } from "../server/routes.js";
+import { serveStatic, log } from "../server/vite.js";
 import session from "express-session";
 import createMemoryStore from "memorystore";
-import { createServer } from "http";
 
 const MemoryStore = createMemoryStore(session);
-
 const app = express();
-app.use(express.json({
-  verify: (req, _res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+
+// ✅ Parse JSON and raw body for webhooks or verification
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf;
+    },
+  })
+);
+
 app.use(express.urlencoded({ extended: false }));
 
-// Session middleware
+// ✅ Session middleware
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "your-secret-key",
@@ -32,9 +35,10 @@ app.use(
   })
 );
 
-// Initialize auth
+// ✅ Initialize authentication
 setupAuth(app);
 
+// ✅ Request/response logging for API routes
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -65,38 +69,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// ✅ Register your API routes
 app.use(router);
 
-(async () => {
-  const server = createServer(app);
+// ✅ Serve static frontend files in production
+serveStatic(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+// ✅ Global error handler
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  res.status(status).json({ message });
+  console.error(err);
+});
 
-    res.status(status).json({ message });
-    // Don't rethrow the error, just log it
-    console.error(err);
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5001', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-  }, () => {
-    log(`serving on port ${port}`);
-  });
-})();
+// 🪄 Export the Express app so Vercel can use it as a serverless function
+export default app;
